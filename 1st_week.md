@@ -73,16 +73,38 @@ int& a = b;
 1. 定义形式
     1. 定义**常量**    `const double pai = 3.14;`
     2. 定义**常量指针**（**不可通过常量指针修改其指向的内容**）
-        > 关键问题：指针是const？还是指针所指的内容为const？  
+        > :star:关键问题：指针是const？还是指针所指的内容为const？  
         > 1. `const char* q = "abc";`  
         > 2. `char* const q = "abc";`  
         > 3. `Person p1; `  
-        >     `const Person* p = &p1;`对象是const  
-        >     `Person* const p = &p1;`指针是const  
-        >     `Person const* p = &p1;`对象是const  
-        函数参数使用常量指针时，可以避免函数内部不小心改变了指针所指内容。
+        >     `const Person* p = &p1;`//指针p所指内容是const。底层const。  
+        >     `Person* const p = &p1;`//指针p是const。顶层const。  
+        >     `Person const* p = &p1;`//指针p所指内容是const。底层const。
+        >    
+        >> 函数参数使用常量指针时，可以避免函数内部不小心改变了指针所指内容。  
+
+        这里有两个概念拿来描述这两种情况：
+        1. `顶层const`（Top-level const）：任意的**对象**是常量。
+        2. `底层const`（Low-level const）：指针和引用等复合类型本身的基本类型为常量。
+
+        用粗暴的话理解，可以说，`底层const`之所以叫“底层”，是因为它控制的是指针或者引用所指向的值。而`顶层const`控制的是表面的，比如直接的一个对象、一个指针。说太多不好，看几个例子就明白啦。
+
+        ```C++
+        int i = 0;
+        const int ci = 42;//顶层const
+        int* const p1 = &i;//顶层const
+        const int* p2 = &ci;//底层const
+        const int* const p3 = p2;//左边const是底层const，右边const是顶层const
+        const int& r = ci;//底层const
+        
+        //！特别注意，对于引用，不存在以下这种定义！因为引用不属于**对象**！！！可以看前面关于`引用`的内容
+        int& const r = ci;//ERROR!!!
+        ```
     3. 定义**常引用**（**不能通过常引用修改其引用的变量**）  
-        `ERROR: const int& r = n; r = 5;`
+        ```C++
+        const int& r = n; 
+        r = 5;//ERROR!!!
+        ```
 2. const的值**必须被初始化**，除非是在声明`extern`中。
 3. 编译器将const定义的东西看作`complier symbol table`中的内容，不是真实的变量。
 4. 有时候，一些const的定义其实并不是常量，编译器可能并不知道具体值。
@@ -100,7 +122,7 @@ int& a = b;
     extern const int x;
     ```
 5. 有const声明的**类的成员函数**-->这个成员函数内部不能进行任何值的修改。
-6. :heavy_exclamation_mark:注意，要使类似`const A a;`的常量对象在后面运行不出问题，就要保证有相应的构造函数能初始化类中所有变量。因为当类的对象初始化为const后，就无法修改其中的值了。
+6. :heavy_exclamation_mark:注意，要使类似`const A a`的常量对象在后面运行不出问题，就要保证有**相应的构造函数能初始化类中所有变量**。因为当类的对象初始化为const后，就无法修改其中的值了。
 7. 看一下下面这个例子。
     ```C++
     class A{
@@ -114,7 +136,28 @@ int& a = b;
     void f(A* this){...}
     void f(const A* this){...}
     ```
-至于成员函数的参数表问题，可以看看`3rd_week`中的`this指针`。
+    
+    至于成员函数的参数表问题，可以看看`3rd_week`中的`this指针`。至于重载函数的问题，可以看看`5th_week`中对重载概念的说明。  
+8. :round_pushpin:谈谈顶层const和底层const在对象拷贝上的问题。
+    1. 顶层const一般没有什么影响。因为拷贝过程并不会改变值。
+        ```C++
+        int i;
+        const int ci = 42;//顶层const
+        i = ci;//OK.
+        const int* p2 = &ci;//底层const
+        const int* const p3 = p2;//同时具备底层、顶层const
+        p2 = p3;//OK.没有修改ci的值。
+        ```
+    2. 底层const在对象拷贝中进行了限制。要么拷贝的对象之间都是底层const，要么就是对象之间的数据类型可以互相转换，比如非常量可以转换为常量。
+        ```C++  
+        //接上面的例子
+        int* p = p3;//ERROR!!! p3具备底层const的属性。
+        p2 = p3;//OK. 都有底层const的属性。
+        
+        p2 = &i;//OK. 从int*转换为const int*是可以的。（非常量转换为常量）
+        int& r = ci;//ERROR!!! const int&无法转换成int&.（常量无法转换为非常量）
+        const int& r2 = ci;//OK.
+        ```
 ---
 ## 动态内存分配
 1. `new`运算符（返回相应类型**指针**）
